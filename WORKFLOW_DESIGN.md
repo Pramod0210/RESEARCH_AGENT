@@ -8,9 +8,7 @@
 4. [Interview Workflow](#interview-workflow)
 5. [State Management](#state-management)
 6. [Data Flow Diagrams](#data-flow-diagrams)
-7. [Error Handling](#error-handling)
-8. [Performance Considerations](#performance-considerations)
-9. [Extension Points](#extension-points)
+7. [Performance Considerations](#performance-considerations)
 
 ---
 
@@ -517,67 +515,6 @@ Output to Report Generator:
 
 ---
 
-## Error Handling
-
-### Exception Hierarchy
-
-```python
-ResearchAnalystException (Base)
-├─ "Failed to create analysts" (create_analyst failure)
-├─ "Human feedback node failed" (human_feedback failure)
-├─ "Failed during web search execution" (search_web failure)
-├─ "Failed to generate analyst question" (ask_question failure)
-├─ "Failed to generate expert answer" (generate_answer failure)
-├─ "Failed to save interview transcript" (save_interview failure)
-├─ "Failed to generate report section" (write_section failure)
-├─ "Failed to write main report" (write_report failure)
-├─ "Failed to generate introduction" (write_introduction failure)
-├─ "Failed to generate conclusion" (write_conclusion failure)
-├─ "Failed to finalize report" (finalize_report failure)
-└─ "Failed to save report file" (file I/O failure)
-```
-
-### Error Recovery
-
-#### Search Results Empty
-```python
-if not search_docs:
-    logger.warning("No search results found")
-    return {"context": ["[No search results found.]"]}
-    # LLM proceeds with limited context
-```
-
-#### Missing Analysts
-```python
-analysts = state.get("analysts", [])
-if not analysts:
-    logger.warning("No analysts found — skipping interviews")
-    return END  # Short-circuit graph
-```
-
-#### Missing Report Sections
-```python
-sections = state.get("sections", [])
-if not sections:
-    sections = ["No sections generated — please verify interview stage."]
-    # Fallback placeholder
-```
-
-### Logging Strategy
-
-Every node logs:
-1. **Entry**: `logger.info("Executing node", node_param=value)`
-2. **Success**: `logger.info("Node complete", output_param=result)`
-3. **Error**: `logger.error("Error in node", error=str(e))`
-
-Uses `structlog` for structured logging with context binding:
-```python
-logger = GLOBAL_LOGGER.bind(module="AutonomousReportGenerator")
-logger.info("Creating analysts", topic=topic)  # Auto-adds module context
-```
-
----
-
 ## Performance Considerations
 
 ### Parallelization
@@ -848,42 +785,6 @@ Incorporate this feedback: {{human_analyst_feedback}}
 
 ---
 
-## Monitoring & Debugging
-
-### Logging Output Example
-
-```
-2024-10-26T15:30:00 INFO module=ReportService Starting report pipeline, topic="AI in Healthcare", thread_id="abc123"
-2024-10-26T15:30:02 INFO module=AutonomousReportGenerator Creating analyst personas, topic="AI in Healthcare"
-2024-10-26T15:30:08 INFO module=AutonomousReportGenerator Analysts created, count=3
-2024-10-26T15:30:09 INFO module=AutonomousReportGenerator Awaiting human feedback
-[USER PROVIDES FEEDBACK]
-2024-10-26T15:30:45 INFO module=InterviewGraphBuilder Generating analyst question, analyst="Dr. Sarah Chen"
-2024-10-26T15:30:47 INFO module=InterviewGraphBuilder Generating search query from conversation
-2024-10-26T15:30:48 INFO module=InterviewGraphBuilder Performing Tavily web search, query="AI in clinical diagnosis"
-2024-10-26T15:30:51 INFO module=InterviewGraphBuilder Web search completed, result_count=5
-2024-10-26T15:30:58 INFO module=InterviewGraphBuilder Generating expert answer, analyst="Dr. Sarah Chen"
-2024-10-26T15:31:03 INFO module=InterviewGraphBuilder Interview transcript saved, message_count=4
-2024-10-26T15:31:08 INFO module=InterviewGraphBuilder Generating report section, analyst="Dr. Sarah Chen"
-[Similar logs for other analysts...]
-2024-10-26T15:31:45 INFO module=AutonomousReportGenerator Writing report
-2024-10-26T15:31:52 INFO module=AutonomousReportGenerator Generating introduction
-2024-10-26T15:32:15 INFO module=AutonomousReportGenerator Generating conclusion
-2024-10-26T15:32:25 INFO module=AutonomousReportGenerator Finalizing report compilation
-2024-10-26T15:32:26 INFO module=AutonomousReportGenerator Saving report, format=docx
-2024-10-26T15:32:28 INFO module=AutonomousReportGenerator Report saved successfully, path="/path/to/report.docx"
-```
-
-### Debugging Checklist
-
-- **Empty sections**: Check if search_web returns results; verify Tavily API key
-- **No analysts created**: Check LLM response format; verify `Perspectives` model alignment
-- **Timeout during interviews**: Increase LLM timeout; reduce max_analysts
-- **Poor report quality**: Adjust prompt templates in `prompt_locator.py`; increase interview depth (future)
-- **Memory issues**: Check `MemorySaver` cleanup; implement file-based checkpointer for production
-
----
-
 ## Summary
 
 The Autonomous Research Report Generator combines two sophisticated LangGraph workflows:
@@ -903,5 +804,3 @@ This design allows for sophisticated AI-driven research while maintaining clarit
 
 ---
 
-**Last Updated**: March 2026  
-**Version**: 1.0

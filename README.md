@@ -363,26 +363,6 @@ Output formats:
 
 ---
 
-## 🔐 Security Considerations
-
-- **Password Security**: Uses bcrypt hashing (passlib) for password storage
-- **Session Management**: Cookie-based sessions (production should use JWT)
-- **Input Validation**: Pydantic validation on all API inputs
-- **SQL Injection**: SQLAlchemy ORM prevents SQL injection
-- **CORS**: Configured for cross-origin requests (customize for production)
-
-**Production Recommendations:**
-
-```python
-# Use environment-based secrets management
-# Implement JWT tokens instead of simple session cookies
-# Add rate limiting and request throttling
-# Enable HTTPS/TLS in production
-# Implement audit logging for sensitive operations
-```
-
----
-
 
 **Last Updated**: March 2026
 **Version**: 0.1.0
