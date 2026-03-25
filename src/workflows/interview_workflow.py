@@ -35,9 +35,9 @@ class InterviewGraphBuilder:
         self.memory = MemorySaver()
         self.logger = GLOBAL_LOGGER.bind(module="InterviewGraphBuilder")
 
-    # ----------------------------------------------------------------------
-    # 🔹 Step 1: Analyst generates question
-    # ----------------------------------------------------------------------
+    
+    #  Step 1: Analyst generates question
+    
     def _generate_question(self, state: InterviewState):
         """
         Generate the first question for the interview based on the analyst's persona.
@@ -56,9 +56,9 @@ class InterviewGraphBuilder:
             self.logger.error("Error generating analyst question", error=str(e))
             raise ResearchAnalystException("Failed to generate analyst question", e)
 
-    # ----------------------------------------------------------------------
-    # 🔹 Step 2: Perform web search
-    # ----------------------------------------------------------------------
+    
+    #  Step 2: Perform web search
+    
     def _search_web(self, state: InterviewState):
         """
         Generate a structured search query and perform Tavily web search.
@@ -89,9 +89,9 @@ class InterviewGraphBuilder:
             self.logger.error("Error during web search", error=str(e))
             raise ResearchAnalystException("Failed during web search execution", e)
 
-    # ----------------------------------------------------------------------
-    # 🔹 Step 3: Expert generates answers
-    # ----------------------------------------------------------------------
+    
+    #  Step 3: Expert generates answers
+    
     def _generate_answer(self, state: InterviewState):
         """
         Use the analyst's context to generate an expert response.
@@ -112,9 +112,9 @@ class InterviewGraphBuilder:
             self.logger.error("Error generating expert answer", error=str(e))
             raise ResearchAnalystException("Failed to generate expert answer", e)
 
-    # ----------------------------------------------------------------------
-    # 🔹 Step 4: Save interview transcript
-    # ----------------------------------------------------------------------
+    
+    #  Step 4: Save interview transcript
+    
     def _save_interview(self, state: InterviewState):
         """
         Save the entire conversation between the analyst and expert as a transcript.
@@ -129,9 +129,9 @@ class InterviewGraphBuilder:
             self.logger.error("Error saving interview transcript", error=str(e))
             raise ResearchAnalystException("Failed to save interview transcript", e)
 
-    # ----------------------------------------------------------------------
-    # 🔹 Step 5: Write report section from interview context
-    # ----------------------------------------------------------------------
+    
+    #  Step 5: Write report section from interview context
+    
     def _write_section(self, state: InterviewState):
         """
         Write a concise report section based on the interview and gathered context.
@@ -153,9 +153,9 @@ class InterviewGraphBuilder:
             self.logger.error("Error writing report section", error=str(e))
             raise ResearchAnalystException("Failed to generate report section", e)
 
-    # ----------------------------------------------------------------------
-    # 🔹 Build Graph
-    # ----------------------------------------------------------------------
+    
+    #  Build Graph
+    
     def build(self):
         """
         Construct and compile the LangGraph Interview workflow.

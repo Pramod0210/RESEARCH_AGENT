@@ -5,17 +5,17 @@ from langgraph.graph import MessagesState
 from pydantic import BaseModel, Field
 from typing_extensions import TypedDict
 
-# -------------------------------
+
 # Section Model
-# -------------------------------
+
 
 class Section(BaseModel):
     title: str
     content: str
 
-# -------------------------------
+
 # Analyst Models
-# -------------------------------
+
 
 class Analyst(BaseModel):
     affiliation: str = Field(description="Primary affiliation of the analyst.")
@@ -39,16 +39,16 @@ class Perspectives(BaseModel):
         description="Comprehensive list of analysts with their roles and affiliations."
     )
 
-# -------------------------------
+
 # Search Query Output Parser
-# -------------------------------
+
 
 class SearchQuery(BaseModel):
     search_query: str = Field(None, description="Search query for retrieval.")
 
-# -------------------------------
+
 # State Classes for Graphs
-# -------------------------------
+
 
 class GenerateAnalystsState(TypedDict):
     topic: str  # Research topic

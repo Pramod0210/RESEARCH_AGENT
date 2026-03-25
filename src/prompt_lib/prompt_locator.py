@@ -1,19 +1,12 @@
-# ==============================================================================
-# 📘 Jinja2-based Prompt Templates for Autonomous Research Report Generator
-# ==============================================================================
-# Author: Sunny Savita
-# Description: These prompt templates use Jinja2 syntax ({{ ... }}, {% if ... %})
-# to dynamically render variables and handle missing values gracefully.
-# ==============================================================================
 
 from jinja2 import Environment, BaseLoader
 
 # Create reusable Jinja environment
 jinja_env = Environment(loader=BaseLoader())
 
-# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
 # Prompt to generate analysts based on topic, feedback, and existing analysts
-# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
 CREATE_ANALYSTS_PROMPT = jinja_env.from_string("""
 You are tasked with creating a set of AI analyst personas. Follow these instructions carefully:
 
@@ -38,9 +31,9 @@ You are tasked with creating a set of AI analyst personas. Follow these instruct
 5. Assign one analyst to each theme.
 """)
 
-# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
 # Prompt for Analyst to Ask Questions
-# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
 ANALYST_ASK_QUESTIONS = jinja_env.from_string("""
 You are an analyst tasked with interviewing an expert to learn about a specific topic. 
 
@@ -67,9 +60,9 @@ Remember to stay in character throughout your response, reflecting the persona a
 Refer to the expert as expert, he doesn't have a name.
 """)
 
-# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
 # Prompt to Generate Search Query from Conversation
-# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
 GENERATE_SEARCH_QUERY = jinja_env.from_string("""
 You will be given a conversation between an analyst and an expert. 
 Your goal is to generate a well-structured query for use in retrieval and / or web-search related to the conversation. 
@@ -78,9 +71,9 @@ Pay particular attention to the final question posed by the analyst.
 Convert this final question into a well-structured web search query.
 """)
 
-# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
 # Prompt for Expert to Generate Answers
-# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
 GENERATE_ANSWERS = jinja_env.from_string("""
 You are an expert being interviewed by an analyst.
 
@@ -113,9 +106,9 @@ When answering questions, follow these guidelines:
 Start your answers with: Expert :
 """)
 
-# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
 # Prompt to Write a Report Section
-# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
 WRITE_SECTION = jinja_env.from_string("""
 You are an expert technical writer. 
 Your task is to create a short, easily digestible section of a report based on a set of source documents.
@@ -169,9 +162,9 @@ There should be no redundant sources. It should simply be:
 - Check that all guidelines have been followed
 """)
 
-# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
 # Prompt to Consolidate All Sections into a Full Report
-# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
 REPORT_WRITER_INSTRUCTIONS = jinja_env.from_string("""
 You are a technical writer creating a report on this overall topic: 
 
@@ -208,9 +201,9 @@ Example:
 [2] Source 2  
 """)
 
-# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
 # Prompt to Write Introduction or Conclusion
-# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
 INTRO_CONCLUSION_INSTRUCTIONS = jinja_env.from_string("""
 You are a technical writer finishing a report on 
 {% if topic %}

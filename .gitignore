@@ -8,9 +8,10 @@ wheels/
 
 # Virtual environments
 .venv
-
+myvenv
 .env
 logs
 archive
 
 generated_report/
+.vscode

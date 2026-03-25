@@ -274,13 +274,13 @@ class AutonomousReportGenerator:
                 wrapped_lines = wrap(line, width=int(usable_width / (size * 0.55)))
 
                 for wline in wrapped_lines:
-                    # 🔹 Auto new page if near bottom
+                    #  Auto new page if near bottom
                     if y < bottom_margin:
                         c.showPage()
                         c.setFont(font, size)
                         y = height - top_margin
 
-                    # 🔹 Compute centered X position
+                    #  Compute centered X position
                     text_width = c.stringWidth(wline, font, size)
                     x = (width - text_width) / 2  # center horizontally
 
