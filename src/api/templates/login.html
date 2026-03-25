@@ -2,31 +2,85 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <title>Login | Autonomous Report Generator</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Login | Autonomous Research Report Generator</title>
   <link rel="stylesheet" href="/static/css/styles.css" />
-
   <style>
+    .auth-header {
+      margin-bottom: 2rem;
+      text-align: center;
+    }
+
+    .auth-header h1 {
+      font-size: 2.2rem;
+      color: var(--neutral-900);
+      margin-bottom: 0.5rem;
+    }
+
+    .auth-header p {
+      color: var(--neutral-500);
+      font-size: 0.95rem;
+    }
+
     .password-wrapper {
       position: relative;
       display: flex;
       align-items: center;
-      justify-content: center;
+    }
+
+    .password-wrapper input {
+      width: 100%;
+      padding-right: 45px;
     }
 
     .toggle-password {
       position: absolute;
       right: 15px;
-      top: 50%;
-      transform: translateY(-50%);
       cursor: pointer;
-      font-size: 1.1rem;
-      color: #475569;
-      transition: color 0.2s ease;
+      font-size: 1.2rem;
+      color: var(--neutral-400);
+      transition: color 0.3s ease;
       user-select: none;
+      padding: 8px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
     }
 
     .toggle-password:hover {
-      color: #2563eb;
+      color: var(--primary);
+    }
+
+    form {
+      display: flex;
+      flex-direction: column;
+      gap: 0.5rem;
+    }
+
+    .form-group {
+      text-align: left;
+    }
+
+    .form-group label {
+      display: block;
+      margin-bottom: 0.5rem;
+      color: var(--neutral-700);
+      font-weight: 600;
+      font-size: 0.9rem;
+    }
+
+    .divider {
+      text-align: center;
+      color: var(--neutral-400);
+      margin: 1.5rem 0;
+      font-size: 0.9rem;
+    }
+
+    .switch {
+      margin-top: 1.5rem;
+      text-align: center;
+      color: var(--neutral-600);
+      font-size: 0.9rem;
     }
   </style>
 </head>
@@ -34,37 +88,50 @@
 <body>
   <div class="auth-container">
     <div class="auth-card">
-      <h2>🔐 Login</h2>
+      <div class="auth-header">
+        <h1>🔐 Welcome Back</h1>
+        <p>Autonomous Research Report Generator</p>
+      </div>
 
       {% if error %}
-        <p class="error">{{ error }}</p>
+        <div class="error">
+          <strong>⚠️ Error:</strong> {{ error }}
+        </div>
       {% endif %}
 
       <form method="post" action="/login">
-        <input
-          type="text"
-          name="username"
-          placeholder="Username"
-          required
-        />
-
-        <div class="password-wrapper">
+        <div class="form-group">
+          <label for="username">Username</label>
           <input
-            type="password"
-            name="password"
-            id="login-password"
-            placeholder="Password"
+            type="text"
+            id="username"
+            name="username"
+            placeholder="Enter your username"
             required
+            autocomplete="username"
           />
-          <span class="toggle-password" id="toggleLoginPassword">👁</span>
         </div>
 
-        <button type="submit">Login</button>
+        <div class="form-group">
+          <label for="login-password">Password</label>
+          <div class="password-wrapper">
+            <input
+              type="password"
+              id="login-password"
+              name="password"
+              placeholder="Enter your password"
+              required
+              autocomplete="current-password"
+            />
+            <span class="toggle-password" id="toggleLoginPassword" title="Show/Hide password">👁️</span>
+          </div>
+        </div>
+
+        <button type="submit">Sign In</button>
       </form>
 
       <p class="switch">
-        Don’t have an account?
-        <a href="/signup">Signup here</a>
+        Don't have an account? <a href="/signup">Create one now</a>
       </p>
     </div>
   </div>
@@ -73,15 +140,20 @@
     const toggleLoginPassword = document.getElementById("toggleLoginPassword");
     const loginPassword = document.getElementById("login-password");
 
-    toggleLoginPassword.addEventListener("click", () => {
-      const type =
-        loginPassword.getAttribute("type") === "password"
-          ? "text"
-          : "password";
-      loginPassword.setAttribute("type", type);
-      toggleLoginPassword.textContent =
-        type === "password" ? "👁" : "🙈";
-    });
+    if (toggleLoginPassword && loginPassword) {
+      toggleLoginPassword.addEventListener("click", () => {
+        const type = loginPassword.getAttribute("type") === "password" ? "text" : "password";
+        loginPassword.setAttribute("type", type);
+        toggleLoginPassword.textContent = type === "password" ? "👁️" : "👁️‍🗨️";
+      });
+
+      // Show password on focus for accessibility
+      loginPassword.addEventListener("keydown", (e) => {
+        if (e.key === "Enter") {
+          loginPassword.form.submit();
+        }
+      });
+    }
   </script>
 </body>
 </html>

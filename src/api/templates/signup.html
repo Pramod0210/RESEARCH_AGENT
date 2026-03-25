@@ -2,80 +2,171 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <title>Signup | Autonomous Report Generator</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Sign Up | Autonomous Research Report Generator</title>
   <link rel="stylesheet" href="/static/css/styles.css" />
   <style>
+    .auth-header {
+      margin-bottom: 2rem;
+      text-align: center;
+    }
+
+    .auth-header h1 {
+      font-size: 2.2rem;
+      color: var(--neutral-900);
+      margin-bottom: 0.5rem;
+    }
+
+    .auth-header p {
+      color: var(--neutral-500);
+      font-size: 0.95rem;
+    }
+
     .password-wrapper {
       position: relative;
       display: flex;
       align-items: center;
-      justify-content: center;
+    }
+
+    .password-wrapper input {
+      width: 100%;
+      padding-right: 45px;
     }
 
     .toggle-password {
       position: absolute;
       right: 15px;
-      top: 50%;
-      transform: translateY(-50%);
       cursor: pointer;
-      font-size: 1.1rem;
-      color: #475569;
-      transition: color 0.2s ease;
+      font-size: 1.2rem;
+      color: var(--neutral-400);
+      transition: color 0.3s ease;
+      user-select: none;
+      padding: 8px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
     }
 
     .toggle-password:hover {
-      color: #2563eb;
+      color: var(--primary);
+    }
+
+    form {
+      display: flex;
+      flex-direction: column;
+      gap: 0.5rem;
+    }
+
+    .form-group {
+      text-align: left;
+    }
+
+    .form-group label {
+      display: block;
+      margin-bottom: 0.5rem;
+      color: var(--neutral-700);
+      font-weight: 600;
+      font-size: 0.9rem;
     }
 
     .password-hint {
-      font-size: 0.8rem;
-      color: #64748b;
-      margin-top: 4px;
+      font-size: 0.85rem;
+      color: var(--neutral-500);
+      margin-top: -0.5rem;
+      margin-bottom: 1rem;
+      padding-left: 0.5rem;
+    }
+
+    .requirements {
+      background: var(--neutral-50);
+      padding: 1rem;
+      border-radius: 10px;
+      margin: 1rem 0;
+      font-size: 0.85rem;
+      color: var(--neutral-600);
+      border-left: 4px solid var(--primary);
+    }
+
+    .requirements ul {
+      margin: 0.5rem 0 0 1rem;
+      padding-left: 1rem;
+    }
+
+    .requirements li {
+      margin: 0.3rem 0;
+    }
+
+    .switch {
+      margin-top: 1.5rem;
+      text-align: center;
+      color: var(--neutral-600);
+      font-size: 0.9rem;
     }
   </style>
 </head>
+
 <body>
   <div class="auth-container">
     <div class="auth-card">
-      <h2>📄 Signup</h2>
+      <div class="auth-header">
+        <h1>✨ Get Started</h1>
+        <p>Create your research account</p>
+      </div>
 
       {% if error %}
-        <p class="error">{{ error }}</p>
+        <div class="error">
+          <strong>⚠️ Error:</strong> {{ error }}
+        </div>
       {% endif %}
 
       <form method="post" action="/signup" onsubmit="return validateForm()">
-        <input
-          type="text"
-          name="username"
-          placeholder="Choose a username"
-          minlength="3"
-          maxlength="32"
-          required
-        />
-
-        <div class="password-wrapper">
+        <div class="form-group">
+          <label for="username">Username</label>
           <input
-            type="password"
-            name="password"
-            id="password"
-            placeholder="Choose a password"
-            minlength="6"
-            maxlength="72"
+            type="text"
+            id="username"
+            name="username"
+            placeholder="Choose a unique username"
+            minlength="3"
+            maxlength="32"
             required
+            autocomplete="username"
           />
-          <span class="toggle-password" id="togglePassword">👁</span>
+          <p class="password-hint">3–32 characters</p>
         </div>
 
-        <p class="password-hint">
-          Password must be 6–72 characters (bcrypt limit)
-        </p>
+        <div class="form-group">
+          <label for="password">Password</label>
+          <div class="password-wrapper">
+            <input
+              type="password"
+              id="password"
+              name="password"
+              placeholder="Choose a strong password"
+              minlength="6"
+              maxlength="72"
+              required
+              autocomplete="new-password"
+            />
+            <span class="toggle-password" id="togglePassword" title="Show/Hide password">👁️</span>
+          </div>
+          <p class="password-hint">6–72 characters (bcrypt limit)</p>
+        </div>
+
+        <div class="requirements">
+          <strong>Password Requirements:</strong>
+          <ul>
+            <li>✓ At least 6 characters</li>
+            <li>✓ Maximum 72 characters</li>
+            <li>💡 Use uppercase, lowercase, and numbers for security</li>
+          </ul>
+        </div>
 
         <button type="submit">Create Account</button>
       </form>
 
       <p class="switch">
-        Already have an account?
-        <a href="/">Login</a>
+        Already have an account? <a href="/">Sign in here</a>
       </p>
     </div>
   </div>
@@ -84,20 +175,40 @@
     const togglePassword = document.getElementById("togglePassword");
     const passwordField = document.getElementById("password");
 
-    togglePassword.addEventListener("click", () => {
-      const type =
-        passwordField.getAttribute("type") === "password" ? "text" : "password";
-      passwordField.setAttribute("type", type);
-      togglePassword.textContent = type === "password" ? "👁" : "🙈";
-    });
+    if (togglePassword && passwordField) {
+      togglePassword.addEventListener("click", () => {
+        const type = passwordField.getAttribute("type") === "password" ? "text" : "password";
+        passwordField.setAttribute("type", type);
+        togglePassword.textContent = type === "password" ? "👁️" : "👁️‍🗨️";
+      });
 
-    // 🧩 Frontend password validation
+      passwordField.addEventListener("keydown", (e) => {
+        if (e.key === "Enter") {
+          passwordField.form.submit();
+        }
+      });
+    }
+
+    // Frontend password validation
     function validateForm() {
-      const password = passwordField.value;
+      const username = document.getElementById("username").value;
+      const password = document.getElementById("password").value;
+
+      if (username.length < 3 || username.length > 32) {
+        alert("Username must be 3–32 characters");
+        return false;
+      }
+
+      if (password.length < 6) {
+        alert("Password must be at least 6 characters");
+        return false;
+      }
+
       if (password.length > 72) {
         alert("Password cannot exceed 72 characters (bcrypt limit)");
         return false;
       }
+
       return true;
     }
   </script>
