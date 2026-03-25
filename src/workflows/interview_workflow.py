@@ -76,12 +76,19 @@ class InterviewGraphBuilder:
                 self.logger.warning("No search results found")
                 return {"context": ["[No search results found.]"]}
 
-            formatted = "\n\n---\n\n".join(
-                [
-                    f'<Document href="{doc.get("url", "#")}"/>\n{doc.get("content", "")}\n</Document>'
-                    for doc in search_docs
-                ]
-            )
+            # Handle both dict and string formats from Tavily API
+            formatted_docs = []
+            for doc in search_docs:
+                if isinstance(doc, dict):
+                    # Dictionary format with url and content keys
+                    url = doc.get("url", "#")
+                    content = doc.get("content", "")
+                    formatted_docs.append(f'<Document href="{url}"/>\n{content}\n</Document>')
+                else:
+                    # String format (raw content)
+                    formatted_docs.append(f'<Document>\n{doc}\n</Document>')
+            
+            formatted = "\n\n---\n\n".join(formatted_docs)
             self.logger.info("Web search completed", result_count=len(search_docs))
             return {"context": [formatted]}
 
