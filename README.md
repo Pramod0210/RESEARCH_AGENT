@@ -1,6 +1,10 @@
 # Autonomous Research Report Generator
 
-A sophisticated multi-agent research system that generates comprehensive, AI-driven reports by simulating diverse expert perspectives. This project combines LLM-powered research workflows, interactive interviewing agents, and modern document generation to produce publication-quality reports on virtually any topic.
+Give it a topic. It invents a panel of domain analysts, sends each one off to interview an expert with live web search behind them, and merges what they bring back into a single sourced report — delivered as DOCX and PDF.
+
+The interesting part is not that an LLM writes a report. It is that the pipeline **stops halfway and waits for you.** After the analyst panel is drafted and before any research spend, the graph interrupts and holds its checkpoint. You redirect the panel in plain English — *"drop the economist, add a labour-law perspective"* — and it resumes from exactly where it paused.
+
+Built on LangGraph with a two-level graph, map-reduce fan-out, and durable checkpointing.
 
 ![Python 3.11+](https://img.shields.io/badge/python-3.11%2B-blue)
 ![FastAPI](https://img.shields.io/badge/FastAPI-0.120.0-green)
@@ -8,361 +12,224 @@ A sophisticated multi-agent research system that generates comprehensive, AI-dri
 
 ---
 
-## 📋 Table of Contents
+## Why this project
 
-- [Overview](#overview)
-- [Features](#features)
-- [Architecture](#architecture)
-- [Installation](#installation)
-- [Configuration](#configuration)
-- [Usage](#usage)
-- [API Endpoints](#api-endpoints)
-- [Deployment](#deployment)
+Most "AI writes a report" demos are one prompt in a loop. The failure mode is a confident monolithic voice with no sourcing and no way to steer it. This one is built around three ideas:
 
+- **A panel beats a prompt.** Instead of one model writing everything, the system generates *N* analyst personas — each with a name, role, affiliation, and a distinct axis of concern — and researches the topic once per persona. Disagreement between sections is a feature, not a bug.
+- **The human steers before the money is spent.** The graph is compiled with `interrupt_before=["human_feedback"]`. It halts *after* drafting the panel and *before* fanning out into interviews, which is the expensive step. Feedback regenerates the panel; nothing is wasted.
+- **Fan-out is real parallelism, not a for-loop.** Interviews are dispatched with LangGraph's `Send`, so each analyst runs as an independent subgraph instance. Their sections merge back through a state reducer rather than overwriting each other.
 
 ---
 
-## 🎯 Overview
+## Architecture
 
-The **Autonomous Research Report Generator** automates the research and report-writing process by:
-
-1. **Generating Expert Personas**: Dynamically creates multiple analyst personas with different perspectives based on the topic
-2. **Interactive Interviews**: Conducts automated interviews with each persona to gather diverse viewpoints
-3. **Multi-Source Research**: Integrates web search (Tavily API) and Wikipedia for real-time information gathering
-4. **Intelligent Report Writing**: Synthesizes all perspectives into a cohesive, well-structured report
-5. **Multi-Format Output**: Generates both DOCX and PDF documents with professional formatting
-6. **User Feedback Integration**: Allows users to provide feedback that influences report regeneration
-
-### Use Cases
-
-- Academic research paper generation
-- Industry analysis and market reports
-- Policy impact assessments
-- Technical documentation
-- Competitive intelligence
-- Content creation and journalism
-
----
-
-## ✨ Features
-
-### Core Features
-
-- **Multi-Agent Orchestration**: Uses LangGraph to coordinate multiple AI agents in a stateful workflow
-- **Adaptive Analyst Personas**: Creates custom expert roles based on topic and user feedback
-- **Real-time Web Search**: Integrates Tavily Search API for current information
-- **Knowledge Base Integration**: Wikipedia integration for factual verification
-- **Structured Output**: Leverages Pydantic models for validated data flow
-- **Conversation Memory**: Maintains state across multi-turn agent interactions
-
-### User Interface
-
-- **Web Dashboard**: FastAPI-powered responsive UI for report generation
-- **User Authentication**: Secure login/signup with bcrypt password hashing
-- **Progress Tracking**: Real-time feedback mechanism during report generation
-- **File Management**: Direct download of generated DOCX and PDF reports
-- **Session Management**: Cookie-based session tracking
-
-### Document Generation
-
-- **DOCX Generation**: Uses `python-docx` for Word document creation
-- **PDF Generation**: ReportLab-based PDF formatting with proper typography
-- **Template-Based Rendering**: Jinja2 templates for consistent formatting
-- **Markdown Support**: Supports markdown-to-document conversion
-
-### Deployment & Operations
-
-- **Docker Support**: Includes Dockerfiles for containerization
-- **Jenkins Pipeline**: Automated CI/CD with Jenkinsfile
-- **AWS Deployment**: Infrastructure-as-code scripts for AWS setup
-- **Health Checks**: Built-in health check endpoints for orchestration
-- **Logging**: Structured logging with `structlog`
-
----
-
-## 🏗️ Architecture
+Two graphs, nested. The outer graph orchestrates the panel; the inner graph is one analyst's research cycle, instantiated once per analyst.
 
 ```
-┌─────────────────────────────────────────────────────────────┐
-│                     FastAPI Web Server                       │
-│  (Authentication, Dashboard, Report Submission/Download)     │
-└──────────────────────┬──────────────────────────────────────┘
-                       │
-┌──────────────────────▼──────────────────────────────────────┐
-│              Report Generation Service                       │
-│     (Orchestrates workflow, manages state, stores results)   │
-└──────────────────────┬──────────────────────────────────────┘
-                       │
-        ┌──────────────┼──────────────┐
-        │              │              │
-┌───────▼──────┐ ┌────▼────┐ ┌──────▼─────────┐
-│ Report Gen   │ │Interview │ │ Document Gen   │
-│ Workflow     │ │ Workflow │ │ (DOCX/PDF)     │
-│ (LangGraph)  │ │(LangGraph)│ │                │
-└───────┬──────┘ └────┬────┘ └──────┬─────────┘
-        │             │             │
-        └─────────┬───┴──────┬──────┘
-                  │          │
-        ┌─────────▼────┐  ┌──▼──────────────┐
-        │ LLM Providers│  │ Research Tools  │
-        │ (OpenAI,     │  │ - Tavily Search │
-        │  Google,     │  │ - Wikipedia     │
-        │  Groq)       │  │                 │
-        └──────────────┘  └─────────────────┘
+                             ┌──────────────────┐
+                    START ──▶│  create_analyst  │  structured output → Perspectives
+                             └────────┬─────────┘
+                                      ▼
+                             ┌──────────────────┐
+                             │  human_feedback  │  ⏸ interrupt_before — graph halts,
+                             └────────┬─────────┘     checkpoint persisted by thread_id
+                                      │
+                          Send(...) fan-out, one per analyst
+                    ┌─────────────────┼─────────────────┐
+                    ▼                 ▼                 ▼
+             ┌────────────┐    ┌────────────┐    ┌────────────┐
+             │ interview  │    │ interview  │    │ interview  │   ← subgraph, runs in parallel
+             │  analyst 1 │    │  analyst 2 │    │  analyst 3 │
+             └──────┬─────┘    └──────┬─────┘    └──────┬─────┘
+                    └─────────────────┼─────────────────┘
+                                      │  sections merge via operator.add reducer
+                    ┌─────────────────┼─────────────────┐
+                    ▼                 ▼                 ▼
+            ┌──────────────┐  ┌──────────────┐  ┌──────────────┐
+            │ write_intro  │  │ write_report │  │write_conclus.│   ← also parallel
+            └──────┬───────┘  └──────┬───────┘  └──────┬───────┘
+                   └─────────────────┼─────────────────┘
+                                     ▼
+                            ┌─────────────────┐
+                            │ finalize_report │ ──▶ END ──▶ DOCX + PDF
+                            └─────────────────┘
 ```
 
-### Key Components
+**The interview subgraph** — one analyst's full research cycle:
 
-| Component | Purpose |
-|-----------|---------|
-| **FastAPI Server** | Handles HTTP requests, user sessions, file downloads |
-| **Report Generator Workflow** | LangGraph state machine for orchestrating report generation |
-| **Interview Workflow** | Multi-turn agent conversation for research depth |
-| **LLM Integration** | Pluggable LLM providers (OpenAI, Google Gemini, Groq) |
-| **Document Generation** | Converts report content to DOCX/PDF formats |
-| **Database** | SQLAlchemy ORM with SQLite for user management |
-| **Templates** | Jinja2 templates for HTML UI and document formatting |
-
----
-
-## 🚀 Installation
-
-### Prerequisites
-
-- **Python 3.11+**
-- **pip** or **uv** (package manager)
-- API Keys:
-  - Tavily Search API key ([https://tavily.com](https://tavily.com))
-  - LLM provider API key (OpenAI, Google Gemini, or Groq)
-
-### Step 1: Clone the Repository
-
-```bash
-git clone <repository-url>
-cd Research_Agent
+```
+START ─▶ ask_question ─▶ search_web ─▶ generate_answer ─▶ save_interview ─▶ write_section ─▶ END
+         persona-driven   Tavily,        grounded in         transcript        markdown
+         question         structured     retrieved docs      buffered          section
+                          SearchQuery    only
 ```
 
-### Step 2: Create Virtual Environment
+### How the pieces hold together
 
-```bash
-# Using Python's venv
-python3.11 -m venv venv
-source venv/bin/activate
+| Mechanism | Where | What it buys |
+|---|---|---|
+| `interrupt_before=["human_feedback"]` | [report_generator_workflow.py](src/workflows/report_generator_workflow.py) | Graph pauses mid-run; human redirects the panel before research spend |
+| `MemorySaver` checkpointer + `thread_id` | [report_service.py](src/api/services/report_service.py) | Paused runs are addressable and resumable across HTTP requests |
+| `Send(...)` conditional fan-out | [report_generator_workflow.py](src/workflows/report_generator_workflow.py) | Dynamic parallelism — panel size decides how many subgraphs spawn |
+| `Annotated[list, operator.add]` | [models.py](src/schemas/models.py) | Parallel branches append to shared state instead of clobbering it |
+| `with_structured_output(...)` | analyst + query generation | Pydantic-validated `Perspectives` / `SearchQuery`, no output parsing |
+| Jinja2 prompt templates | [prompt_locator.py](src/prompt_lib/prompt_locator.py) | Prompts are data with `{% if %}` fallbacks, not f-strings in business logic |
+| `ModelLoader` + YAML | [model_loader.py](src/utils/model_loader.py) | Swap OpenAI ↔ Gemini ↔ Groq with one env var |
 
-# OR using uv (faster alternative)
-uv venv
-source .venv/bin/activate
-```
+### Resuming a paused run
 
-### Step 3: Install Dependencies
-
-```bash
-# Using pip
-pip install -r requirements.txt
-
-# OR using uv
-uv pip install -r requirements.txt
-```
-
-### Step 4: Install Package in Development Mode
-
-```bash
-pip install -e .
-```
-
----
-
-## ⚙️ Configuration
-
-### Environment Variables
-
-Create a `.env` file in the project root:
-
-```env
-# LLM Provider Configuration
-OPENAI_API_KEY=your_openai_api_key
-GOOGLE_API_KEY=your_google_api_key
-GROQ_API_KEY=your_groq_api_key
-
-# Search API Configuration
-TAVILY_API_KEY=your_tavily_api_key
-
-# FastAPI Configuration
-HOST=0.0.0.0
-PORT=8000
-DEBUG=true
-
-# Database Configuration
-DATABASE_URL=sqlite:///./users.db
-
-# Logging Configuration
-LOG_LEVEL=INFO
-```
-
----
-
-## 💻 Usage
-
-### Running Locally
-
-#### Option 1: Start FastAPI Server
-
-```bash
-uvicorn src.api.main:app --reload --host 0.0.0.0 --port 8000
-```
-
-Navigate to http://localhost:8000 in your browser.
-
-#### Option 2: Run CLI Script
-
-```bash
-python main.py
-```
-
-### Web Interface Workflow
-
-1. **Sign Up**: Create a new user account
-2. **Login**: Use credentials to access the dashboard
-3. **Enter Topic**: Submit a research topic in the dashboard
-4. **Review Progress**: Monitor report generation in real-time
-5. **Provide Feedback**: (Optional) Submit feedback to refine the report
-6. **Download Report**: Download the generated DOCX or PDF file
-
-### Programmatic Usage
+The pause is the pivot the whole design turns on, so it is worth showing concretely:
 
 ```python
-from src.api.services.report_service import ReportService
-
-# Initialize service
-service = ReportService()
-
-# Start report generation
-result = service.start_report_generation(
-    topic="Impact of AI on Healthcare",
-    max_analysts=3
-)
+# 1. Runs until the interrupt, then returns — analysts drafted, nothing researched yet
+result    = service.start_report_generation("Impact of LLMs on the future of jobs", 3)
 thread_id = result["thread_id"]
 
-# Submit user feedback (optional)
-service.submit_feedback(
-    thread_id=thread_id,
-    feedback="Focus more on regulatory impacts"
-)
+# 2. Feedback is written into state *as if* the paused node produced it, then the graph resumes
+service.submit_feedback(thread_id, "Add a labour-economics perspective; drop the VC angle")
 
-# Check status
+# 3. Fan-out, synthesis, and both file renders have now happened
 status = service.get_report_status(thread_id)
-print(f"Document path: {status['docx_path']}")
-print(f"PDF path: {status['pdf_path']}")
-
-# Download the report
-file_response = service.download_file("report_filename.docx")
+# {'status': 'completed', 'docx_path': '...', 'pdf_path': '...'}
 ```
 
-### API Endpoints
+Step 2 works because `update_state(..., as_node="human_feedback")` attributes the write to the interrupted node, so LangGraph continues down the edges leaving it rather than restarting.
 
-#### Authentication
+---
 
-| Method | Endpoint | Description |
-|--------|----------|-------------|
-| GET | `/` | Show login page |
-| POST | `/login` | User login |
-| GET | `/signup` | Show signup page |
-| POST | `/signup` | User registration |
+## Stack
 
-#### Report Management
+| Layer | Choice | Why |
+|---|---|---|
+| Orchestration | LangGraph | Stateful graphs with interrupts, checkpointing, and `Send` fan-out |
+| LLM | OpenAI `gpt-4o` (default) | Swappable for Gemini 2.0 Flash or Groq DeepSeek-R1-70B via `LLM_PROVIDER` |
+| Web search | Tavily | Search API that returns clean extracted content, not raw HTML |
+| Schema | Pydantic | Structured LLM output validated at the boundary |
+| API | FastAPI + Jinja2 | Server-rendered UI and JSON health endpoint in one app |
+| Auth | passlib + bcrypt | Salted password hashing over SQLAlchemy/SQLite |
+| Documents | python-docx, ReportLab | Heading-aware DOCX; wrapped, paginated, footered PDF |
+| Logging | structlog | Bound structured context (`module=`, `topic=`) instead of string logs |
+| CI/CD | Jenkins → ACR → Azure Container Apps | Multi-stage Docker build, scripted infra |
 
-| Method | Endpoint | Description |
-|--------|----------|-------------|
-| GET | `/dashboard` | User dashboard (requires session) |
-| POST | `/generate_report` | Start new report generation |
-| POST | `/submit_feedback` | Submit feedback on report |
-| GET | `/download/{file_name}` | Download generated report |
-| GET | `/health` | Health check endpoint |
+---
 
-#### Request Models
+## Running it
 
-**ReportRequest**:
-```python
-{
-    "topic": "str - Topic for report generation",
-    "max_analysts": "int - Number of analyst personas (default: 3)",
-    "feedback": "str (optional) - User feedback to refine report"
-}
+**Prerequisites** — Python 3.11+, a [Tavily](https://tavily.com) key, and one LLM provider key.
+
+```bash
+git clone https://github.com/Pramod0210/RESEARCH_AGENT.git
+cd RESEARCH_AGENT
+
+python3.11 -m venv venv && source venv/bin/activate
+pip install -r requirements.txt          # includes -e . for the src package
+
+cp .env.example .env                     # then fill in your keys
 ```
 
-**FeedbackRequest**:
-```python
-{
-    "thread_id": "str - Thread identifier for feedback",
-    "feedback": "str - Feedback content"
-}
+Start the server:
+
+```bash
+uvicorn src.api.main:app --reload --port 8000
+```
+
+Open <http://localhost:8000>, sign up, and submit a topic from the dashboard.
+
+**Or skip the web layer entirely** — `report_generator_workflow.py` has a `__main__` block that runs the same graph on the command line and prompts for feedback at the interrupt:
+
+```bash
+python -m src.workflows.report_generator_workflow
+```
+
+Reports land in `generated_report/<topic>_<timestamp>/`, one folder per run, containing both `.docx` and `.pdf`.
+
+### Configuration
+
+Model choice lives in [src/config/configuration.yaml](src/config/configuration.yaml); `LLM_PROVIDER` in `.env` picks which block is loaded.
+
+```yaml
+llm:
+  openai:
+    provider: "openai"
+    model_name: "gpt-4o"
+    temperature: 0
+  google:
+    provider: "google"
+    model_name: "gemini-2.0-flash"
+  groq:
+    provider: "groq"
+    model_name: "deepseek-r1-distill-llama-70b"
 ```
 
 ---
 
+## HTTP surface
 
-## 🐳 Deployment
+The UI is server-rendered, so these are form-encoded HTML routes rather than a JSON API.
 
-### Docker Deployment
-
-#### Build Docker Image
-
-```bash
-./build-and-push-docker-image.sh
-```
-
-#### Run Docker Container
-
-```bash
-docker build -f Dockerfile -t research-agent:latest .
-docker run -p 8000:8000 \
-  -e OPENAI_API_KEY=your_key \
-  -e TAVILY_API_KEY=your_key \
-  research-agent:latest
-```
-
-### AWS Deployment
-
-#### Using Setup Script
-
-```bash
-chmod +x setup-app-infrastructure.sh
-./setup-app-infrastructure.sh
-```
-
-#### Manual Deployment
-
-```bash
-chmod +x azure-deploy-jenkins.sh
-./azure-deploy-jenkins.sh
-```
-
-### Jenkins Pipeline
-
-The `Jenkinsfile` defines:
-- Build stage: Install dependencies, run tests
-- Test stage: Run unit tests and linting
-- Build Docker: Create and tag container image
-- Deploy: Push to registry and deploy to cluster
+| Method | Route | Purpose |
+|---|---|---|
+| `GET` | `/` | Login page |
+| `POST` | `/login` | Authenticate, set session cookie |
+| `GET` `POST` | `/signup` | Registration |
+| `GET` | `/dashboard` | Topic submission (session required) |
+| `POST` | `/generate_report` | Runs the graph up to the interrupt, returns a `thread_id` |
+| `POST` | `/submit_feedback` | Injects feedback, resumes the graph, renders download links |
+| `GET` | `/download/{file_name}` | Serves a generated DOCX/PDF |
+| `GET` | `/health` | JSON liveness probe — wired to the Docker `HEALTHCHECK` |
 
 ---
 
-## 📊 Generated Report Example
+## Deployment
 
-Reports include:
+Multi-stage Dockerfile — dependencies compile in a builder stage, only the installed packages carry into the runtime image.
 
-- **Executive Summary**: High-level overview and key findings
-- **Multiple Perspectives**: Detailed analysis from each analyst persona
-- **Research Sources**: Citations and references to web sources and Wikipedia
-- **Conclusion**: Synthesis of all perspectives with recommendations
-- **Professional Formatting**: Page breaks, headers, footers, and consistent styling
+```bash
+docker build -t research-agent:latest .
+docker run -p 8000:8000 --env-file .env research-agent:latest
+```
 
-Output formats:
-- `.docx` - Microsoft Word format (editable, formatted)
-- `.pdf` - PDF format (read-only, portable)
+**Azure**, driven by Jenkins:
+
+```bash
+./setup-app-infrastructure.sh    # Resource group, ACR, Container Apps env, Azure Files share
+./azure-deploy-jenkins.sh        # Jenkins on ACI, preloaded with Python 3.11 + Azure CLI
+```
+
+The [Jenkinsfile](Jenkinsfile) then runs checkout → venv → dependencies → tests → ACR tag resolution → `az containerapp` deploy, pulling Azure credentials and API keys from Jenkins credential bindings. Generated reports persist to a mounted Azure Files share so they survive container restarts.
 
 ---
 
+## Known limitations
 
-**Last Updated**: March 2026
-**Version**: 0.1.0
+Honest notes on where this is a portfolio project rather than a production service:
+
+- **Sessions are in-process and unsigned.** `SESSIONS` is a module-level dict and the cookie value is a predictable `{username}_session`. Fine for a single-instance demo; it needs signed tokens and shared storage before it goes anywhere real.
+- **Checkpoints are in-memory.** `MemorySaver` means paused runs are lost on restart. Swapping in LangGraph's SQLite or Postgres checkpointer is the natural next step.
+- **Generation is synchronous.** A report runs inside the HTTP request, which takes minutes. It belongs on a task queue with the client polling `thread_id`.
+- **Interviews are single-turn.** Each analyst asks one question, runs one search, and writes one section. `max_num_turns` is carried in state but the shipped subgraph is linear — the multi-turn loop exists only in the [notebook prototype](src/notebook/).
+- **Panel size is fixed at 3** in the web route, though the graph and service accept any value.
+
+---
+
+## Repository layout
+
+```
+src/
+├── workflows/          LangGraph graphs — outer report graph + interview subgraph
+├── schemas/            Pydantic models and TypedDict graph state
+├── prompt_lib/         Jinja2 prompt templates
+├── utils/              ModelLoader (provider abstraction), YAML config loader
+├── api/                FastAPI app, routes, service layer, Jinja2 templates
+├── database/           SQLAlchemy models, bcrypt helpers
+├── logger/             structlog setup
+├── exception/          Custom exception type
+└── notebook/           Exploratory prototypes (not part of the running app)
+```
+
+[WORKFLOW_DESIGN.md](WORKFLOW_DESIGN.md) documents the graph design in more depth.
+
+---
+
+Built by **Pramod Kumar** — [GitHub](https://github.com/Pramod0210)

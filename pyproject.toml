@@ -5,7 +5,7 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "research_agent"
 version = "0.1.0"
-description = "Add your description here"
+description = "Multi-agent research report generator built on LangGraph, with human-in-the-loop analyst review"
 readme = "README.md"
 requires-python = ">=3.11"
 dependencies = [
@@ -17,6 +17,8 @@ dependencies = [
     "langchain-openai==0.3.32",
     "langgraph>=0.6.8",
     "structlog==25.4.0",
+    "python-dotenv>=1.1.1",
+    "pyyaml>=6.0.2",
     "tavily-python>=0.7.12",
     "wikipedia>=1.4.0",
 ]
